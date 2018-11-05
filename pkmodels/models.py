@@ -1,11 +1,12 @@
 import logging
 import json
 import io
-import tempfile
+from abc import ABC, abstractmethod
 import zipfile
 from pathlib import Path
 from pkmodels.settings import DIR_MODELS, RAW_MODEL_NAME, RAW_METAS_NAME, ZIP_MODEL_PREFIX
 from keras import models
+from pkmodels import inputs
 
 
 logger = logging.getLogger(__name__)
@@ -66,4 +67,20 @@ class PKModel:
         self._model_name = model_name
         self._model_path = model_path
         self._model_version = version
+
+        meta, model = load_model(self._model_path, self._model_version)
+        self._model_meta = meta
+        self._model = model
+
+    def predict(self, **kwargs):
+        kwargs.update(self._model_meta)
+        input_tensor = getattr(inputs.Tensors, self._model_meta['input_tensor'])(**kwargs)
+
+        probs = self._model.predict(input_tensor, verbose=2)
+        index = probs.argmax(axis=-1)[0]
+        return self._model_meta['classes'][index], probs.max()
+
+
+
+
 
